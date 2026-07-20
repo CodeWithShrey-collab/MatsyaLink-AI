@@ -1,0 +1,11 @@
+transaction_id,timestamp,submission,decision,selected_buyer,selected_market,fish_type,quantity_kg,expected_revenue,outcome,notification_status,execution_log
+T-DEMO-001,2026-07-12T08:15:00+05:30,"{}",direct_sale,Goa Seafoods Collective,Panjim Fish Market,Mackerel,240,75600,direct_sale,sent,"[]"
+T-DEMO-002,2026-07-12T11:40:00+05:30,"{}",negotiate,Coromandel Tuna Traders,Tuticorin Harbour Market,Tuna,310,165850,negotiate,not_started,"[]"
+T-DEMO-003,2026-07-13T07:20:00+05:30,"{}",alternate_market,,Sealdah Wholesale Market,Rohu,180,45900,alternate_market,not_started,"[]"
+T-DEMO-004,2026-07-14T09:05:00+05:30,"{}",direct_sale,BlueWave Restaurants,Sassoon Dock Market,Pomfret,200,158000,direct_sale,sent,"[]"
+T-DEMO-005,2026-07-15T06:45:00+05:30,"{}",direct_sale,Malabar Prawn Exports,Malpe Harbour Market,Prawns,350,218750,direct_sale,dry_run,"[]"
+T-DEMO-006,2026-07-15T12:10:00+05:30,"{}",negotiate,Marina Restaurant Network,Kasimedu Fish Market,Tuna,290,162400,negotiate,not_started,"[]"
+T-DEMO-007,2026-07-16T08:30:00+05:30,"{}",direct_sale,Konkan Fresh Foods,Sassoon Dock Market,Pomfret,420,317100,direct_sale,sent,"[]"
+T-DEMO-008,2026-07-17T10:00:00+05:30,"{}",alternate_market,,Howrah Fish Market,Rohu,260,63700,alternate_market,not_started,"[]"
+T-DEMO-009,2026-07-18T07:55:00+05:30,"{}",direct_sale,Mandovi Hotel Supply,Panjim Fish Market,Mackerel,300,99000,direct_sale,dry_run,"[]"
+T-DEMO-010,2026-07-19T09:35:00+05:30,"{}",direct_sale,Karavali Hotel Group,Mangaluru Central Fish Market,Prawns,200,130000,direct_sale,sent,"[]"

@@ -1,0 +1,16 @@
+market_id,market_name,location,fish_type,distance_km,current_demand,current_price_per_kg,updated_at
+MKT-001,Sassoon Dock Market,Mumbai Maharashtra,Pomfret,8,High,780,2026-07-20T06:00:00+05:30
+MKT-002,Crawford Seafood Market,Mumbai Maharashtra,Pomfret,18,Medium,735,2026-07-20T06:00:00+05:30
+MKT-003,Versova Fish Market,Mumbai Maharashtra,Pomfret,12,High,760,2026-07-20T06:00:00+05:30
+MKT-004,Margao Wholesale Fish Market,Margao Goa,Mackerel,10,High,310,2026-07-20T06:00:00+05:30
+MKT-005,Mapusa Municipal Market,Mapusa Goa,Mackerel,27,Medium,285,2026-07-20T06:00:00+05:30
+MKT-006,Panjim Fish Market,Panaji Goa,Mackerel,16,High,325,2026-07-20T06:00:00+05:30
+MKT-007,Howrah Fish Market,Howrah West Bengal,Rohu,15,High,245,2026-07-20T06:00:00+05:30
+MKT-008,Gariahat Fish Market,Kolkata West Bengal,Rohu,28,Medium,230,2026-07-20T06:00:00+05:30
+MKT-009,Sealdah Wholesale Market,Kolkata West Bengal,Rohu,20,High,255,2026-07-20T06:00:00+05:30
+MKT-010,Mangaluru Central Fish Market,Mangaluru Karnataka,Prawns,11,High,610,2026-07-20T06:00:00+05:30
+MKT-011,Malpe Harbour Market,Udupi Karnataka,Prawns,24,High,640,2026-07-20T06:00:00+05:30
+MKT-012,Karwar Fish Market,Karwar Karnataka,Prawns,38,Medium,585,2026-07-20T06:00:00+05:30
+MKT-013,Kasimedu Fish Market,Chennai Tamil Nadu,Tuna,9,High,520,2026-07-20T06:00:00+05:30
+MKT-014,Chintadripet Fish Market,Chennai Tamil Nadu,Tuna,19,Medium,495,2026-07-20T06:00:00+05:30
+MKT-015,Tuticorin Harbour Market,Thoothukudi Tamil Nadu,Tuna,42,High,545,2026-07-20T06:00:00+05:30

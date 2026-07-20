@@ -1,0 +1,21 @@
+buyer_id,buyer_name,accepted_fish_types,capacity_kg,location,distance_km,price_offered_per_kg,contact_email,current_demand,freshness_acceptance
+BUY-001,Konkan Fresh Foods,Pomfret|Mackerel,600,Mumbai Maharashtra,14,755,buyer1@example.com,High,Moderate
+BUY-002,BlueWave Restaurants,Pomfret,280,Mumbai Maharashtra,9,790,buyer2@example.com,High,Fresh
+BUY-003,Coastal Catch Cooperative,Pomfret|Prawns,900,Navi Mumbai Maharashtra,31,720,buyer3@example.com,Medium,Low Freshness
+BUY-004,Harbour Hospitality Supply,Pomfret,450,Thane Maharashtra,38,770,buyer4@example.com,High,Moderate
+BUY-005,Goa Seafoods Collective,Mackerel,1000,Margao Goa,8,315,buyer5@example.com,High,Moderate
+BUY-006,Mandovi Hotel Supply,Mackerel|Prawns,350,Panaji Goa,18,330,buyer6@example.com,High,Fresh
+BUY-007,Mapusa Cold Chain,Mackerel,1200,Mapusa Goa,29,275,buyer7@example.com,Medium,Low Freshness
+BUY-008,Western Coast Canners,Mackerel|Tuna,1800,Vasco da Gama Goa,35,290,buyer8@example.com,High,Low Freshness
+BUY-009,Malabar Prawn Exports,Prawns,800,Mangaluru Karnataka,12,625,buyer9@example.com,High,Fresh
+BUY-010,Udupi Marine Foods,Prawns|Mackerel,500,Udupi Karnataka,25,600,buyer10@example.com,Medium,Moderate
+BUY-011,Karavali Hotel Group,Prawns,220,Mangaluru Karnataka,17,650,buyer11@example.com,High,Fresh
+BUY-012,Coastal Frozen Foods,Prawns,1500,Karwar Karnataka,40,570,buyer12@example.com,Medium,Low Freshness
+BUY-013,Coromandel Tuna Traders,Tuna,950,Chennai Tamil Nadu,11,535,buyer13@example.com,High,Fresh
+BUY-014,Marina Restaurant Network,Tuna|Pomfret,320,Chennai Tamil Nadu,16,560,buyer14@example.com,High,Moderate
+BUY-015,Pearl City Seafoods,Tuna,1400,Thoothukudi Tamil Nadu,45,505,buyer15@example.com,Medium,Low Freshness
+BUY-016,Oceanic Export House,Tuna|Prawns,2000,Chennai Tamil Nadu,28,580,buyer16@example.com,High,Fresh
+BUY-017,West Coast Retail Mart,Pomfret|Mackerel,700,Ratnagiri Maharashtra,48,700,buyer17@example.com,Medium,Moderate
+BUY-018,Seabreeze Catering,Pomfret|Prawns,260,Mumbai Maharashtra,22,745,buyer18@example.com,High,Fresh
+BUY-019,Peninsula Cold Storage,Mackerel|Tuna,1600,Chennai Tamil Nadu,33,510,buyer19@example.com,Medium,Low Freshness
+BUY-020,Artisanal Catch Bazaar,Pomfret|Mackerel|Prawns|Tuna,400,Goa,20,590,buyer20@example.com,High,Moderate

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "High demand - successful sale",
+    "expected_route": "direct_sale",
+    "submission": {
+      "fisher_name": "Anita Naik",
+      "contact_number": "+91-9876501001",
+      "location": "Margao, Goa",
+      "fish_type": "Mackerel",
+      "quantity_kg": 250,
+      "catch_time": "NOW_MINUS_2_HOURS",
+      "expected_min_price_per_kg": 280,
+      "max_travel_distance_km": 40
+    }
+  },
+  {
+    "name": "Offer below expectation - negotiation",
+    "expected_route": "negotiate",
+    "submission": {
+      "fisher_name": "Selvan Kumar",
+      "contact_number": "+91-9876501002",
+      "location": "Kasimedu, Chennai",
+      "fish_type": "Tuna",
+      "quantity_kg": 300,
+      "catch_time": "NOW_MINUS_5_HOURS",
+      "expected_min_price_per_kg": 700,
+      "max_travel_distance_km": 50
+    }
+  },
+  {
+    "name": "No buyer - alternate market",
+    "expected_route": "alternate_market",
+    "submission": {
+      "fisher_name": "Bimal Das",
+      "contact_number": "+91-9876501003",
+      "location": "Howrah, West Bengal",
+      "fish_type": "Rohu",
+      "quantity_kg": 180,
+      "catch_time": "NOW_MINUS_8_HOURS",
+      "expected_min_price_per_kg": 220,
+      "max_travel_distance_km": 35
+    }
+  }
+]
