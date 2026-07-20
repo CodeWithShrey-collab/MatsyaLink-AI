@@ -47,7 +47,9 @@ def build_graph(*, with_memory: bool = True):
     builder.add_node("market_retrieval", market_retrieval_node)
     builder.add_node("buyer_retrieval", buyer_retrieval_node)
     builder.add_node("buyer_scoring", buyer_scoring_node)
-    builder.add_node("decision", decision_node)
+    # Keep executable node names distinct from AgentState channel names. Some
+    # LangGraph releases reject a node/channel collision during construction.
+    builder.add_node("decision_agent", decision_node)
     # One implementation, three explicit path nodes for a visible conditional trace.
     builder.add_node("direct_sale_proposal", proposal_generation_node)
     builder.add_node("negotiation_proposal", proposal_generation_node)
@@ -69,9 +71,9 @@ def build_graph(*, with_memory: bool = True):
     builder.add_edge("urgency_analysis", "market_retrieval")
     builder.add_edge("market_retrieval", "buyer_retrieval")
     builder.add_edge("buyer_retrieval", "buyer_scoring")
-    builder.add_edge("buyer_scoring", "decision")
+    builder.add_edge("buyer_scoring", "decision_agent")
     builder.add_conditional_edges(
-        "decision",
+        "decision_agent",
         route_after_decision,
         {
             "direct_sale_proposal": "direct_sale_proposal",

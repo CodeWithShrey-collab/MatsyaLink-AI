@@ -7,7 +7,7 @@ import pytest
 
 from config import get_settings
 from graph import build_graph
-from state import initial_state
+from state import AgentState, initial_state
 
 
 def submission(
@@ -119,3 +119,41 @@ def test_score_components_are_explainable(app):
         )
     )
 
+
+def test_agentic_trace_names_conditional_route_and_executed_tools(app):
+    result = app.invoke(
+        initial_state(
+            submission(
+                fish_type="Mackerel",
+                expected_price=280,
+                hours_old=2,
+                location="Margao, Goa",
+            )
+        )
+    )
+
+    nodes = [event["node"] for event in result["execution_logs"]]
+    executed_tools = {
+        event.get("details", {}).get("tool")
+        for event in result["execution_logs"]
+        if event.get("details", {}).get("tool")
+    }
+
+    assert "direct_sale_proposal" in nodes
+    assert "negotiation_proposal" not in nodes
+    assert "fallback_proposal" not in nodes
+    assert {
+        "get_market_prices",
+        "get_available_buyers",
+        "calculate_buyer_score",
+        "send_buyer_notification",
+        "save_transaction",
+    }.issubset(executed_tools)
+
+
+def test_graph_node_names_do_not_collide_with_state_channels(app):
+    graph_nodes = set(app.get_graph().nodes)
+    state_channels = set(AgentState.__annotations__)
+
+    assert "decision_agent" in graph_nodes
+    assert graph_nodes.isdisjoint(state_channels)

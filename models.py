@@ -159,11 +159,10 @@ class Transaction(DomainModel):
 
 
 class DecisionOutput(DomainModel):
-    """Schema used for Gemini's constrained decision explanation."""
+    """Schema used to validate Gemma 4's constrained decision explanation."""
 
     decision: DecisionType
     selected_buyer_id: str | None = None
     selected_market_id: str | None = None
     explanation: str
     negotiation_strategy: str | None = None
-

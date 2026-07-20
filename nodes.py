@@ -224,7 +224,11 @@ def buyer_scoring_node(state: AgentState) -> dict[str, Any]:
             "buyer_scoring",
             "completed",
             f"Ranked {len(scores)} buyer(s) with the weighted scoring model.",
-            {"market_reference_price": round(market_reference, 2)},
+            {
+                "market_reference_price": round(market_reference, 2),
+                "tool": "calculate_buyer_score",
+                "tool_calls": len(scores),
+            },
         ),
     }
 
@@ -266,7 +270,34 @@ def _policy_decision(state: AgentState) -> tuple[DecisionType, dict[str, Any] | 
     return DecisionType.NEGOTIATE, buyer
 
 
-def _gemini_decision(
+def _parse_decision_output(raw_content: str) -> DecisionOutput:
+    """Extract and validate one JSON object from an Ollama Cloud response.
+
+    Ollama Cloud does not currently enforce the ``format`` schema for cloud
+    models. Gemma therefore receives the schema in the prompt, and this parser
+    treats every model response as untrusted until Pydantic validation succeeds.
+    It also tolerates Markdown fences or empty thinking-channel markers.
+    """
+
+    content = raw_content.strip()
+    try:
+        return DecisionOutput.model_validate_json(content)
+    except (ValueError, TypeError):
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(content):
+        if character != "{":
+            continue
+        try:
+            candidate, _ = decoder.raw_decode(content[index:])
+            return DecisionOutput.model_validate(candidate)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            continue
+    raise ValueError("Gemma 4 response did not contain a valid DecisionOutput object.")
+
+
+def _gemma_decision(
     state: AgentState,
     allowed: DecisionType,
     preferred_buyer: dict[str, Any] | None,
@@ -275,8 +306,7 @@ def _gemini_decision(
     settings = get_settings()
     if not settings.llm_ready:
         return None
-    from google import genai
-    from google.genai import types
+    from ollama import Client
 
     prompt = DECISION_PROMPT.format(
         catch_json=json.dumps(state["validated_submission"], indent=2),
@@ -289,17 +319,28 @@ def _gemini_decision(
         preferred_buyer_id=(preferred_buyer or {}).get("buyer_id"),
         preferred_market_id=(preferred_market or {}).get("market_id"),
     )
-    client = genai.Client(api_key=settings.gemini_api_key)
-    response = client.models.generate_content(
-        model=settings.gemini_model,
-        contents=f"{SYSTEM_PROMPT}\n\n{prompt}",
-        config=types.GenerateContentConfig(
-            temperature=0.1,
-            response_mime_type="application/json",
-            response_schema=DecisionOutput,
-        ),
+    schema = json.dumps(DecisionOutput.model_json_schema(), ensure_ascii=False)
+    output_contract = (
+        "Return exactly one JSON object and no Markdown. The JSON must validate "
+        f"against this schema: {schema}"
     )
-    return DecisionOutput.model_validate_json(response.text)
+    headers = (
+        {"Authorization": f"Bearer {settings.ollama_api_key}"}
+        if settings.ollama_api_key
+        else None
+    )
+    client = Client(host=settings.ollama_host, headers=headers)
+    response = client.chat(
+        model=settings.ollama_model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"{prompt}\n\n{output_contract}"},
+        ],
+        stream=False,
+        options={"temperature": 0},
+    )
+    content = getattr(response.message, "content", "")
+    return _parse_decision_output(content)
 
 
 def decision_node(state: AgentState) -> dict[str, Any]:
@@ -345,7 +386,7 @@ def decision_node(state: AgentState) -> dict[str, Any]:
 
     llm_used = False
     try:
-        llm_result = _gemini_decision(state, allowed, buyer, market)
+        llm_result = _gemma_decision(state, allowed, buyer, market)
         if llm_result:
             buyer_ids = {item["buyer_id"] for item in state["available_buyers"]}
             market_ids = {item["market_id"] for item in state["available_markets"]}
@@ -375,9 +416,14 @@ def decision_node(state: AgentState) -> dict[str, Any]:
         "type": allowed.value,
         "explanation": explanation,
         "negotiation_strategy": strategy,
-        "reasoning_source": "gemini_guardrailed" if llm_used else "deterministic_policy",
+        "reasoning_source": "gemma4_guardrailed" if llm_used else "deterministic_policy",
     }
-    details = {"llm_used": llm_used}
+    settings = get_settings()
+    details = {
+        "llm_used": llm_used,
+        "model_provider": "ollama",
+        "model": settings.ollama_model,
+    }
     if llm_error:
         details["llm_fallback_reason"] = llm_error
     return {
@@ -387,7 +433,7 @@ def decision_node(state: AgentState) -> dict[str, Any]:
         "decision": decision,
         "agent_status": "decision_made",
         "execution_logs": log_event(
-            "decision",
+            "decision_agent",
             "completed",
             f"Decision: {allowed.value}.",
             details,
@@ -446,12 +492,17 @@ def proposal_generation_node(state: AgentState) -> dict[str, Any]:
             ),
             "market": market,
         }
+    proposal_node = {
+        DecisionType.DIRECT_SALE: "direct_sale_proposal",
+        DecisionType.NEGOTIATE: "negotiation_proposal",
+        DecisionType.ALTERNATE_MARKET: "fallback_proposal",
+    }[decision]
     return {
         "proposal": proposal,
         "notification_content": notification,
         "agent_status": "proposal_generated",
         "execution_logs": log_event(
-            "proposal_generation",
+            proposal_node,
             "completed",
             proposal["title"],
         ),
@@ -473,7 +524,13 @@ def notification_node(state: AgentState) -> dict[str, Any]:
         "notification_status": status,
         "agent_status": "notification_processed",
         "execution_logs": log_event(
-            "notification", log_status, message, {"recipient": content.get("recipient")}
+            "notification",
+            log_status,
+            message,
+            {
+                "recipient": content.get("recipient"),
+                "tool": "send_buyer_notification",
+            },
         ),
     }
 
@@ -511,7 +568,10 @@ def persistence_node(state: AgentState) -> dict[str, Any]:
                 "persistence",
                 "completed",
                 "Execution stored in the transaction ledger.",
-                {"transaction_id": result["transaction_id"]},
+                {
+                    "transaction_id": result["transaction_id"],
+                    "tool": "save_transaction",
+                },
             ),
         }
     except Exception as exc:

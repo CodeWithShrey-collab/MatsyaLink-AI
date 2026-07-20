@@ -5,7 +5,7 @@ small-scale artisanal fishers. It supports **UN SDG 14.b** by turning a catch
 submission into an explainable sale, negotiation, or alternate-market action.
 
 The core is a LangGraph state machine with real conditional edges, tool
-execution, structured Gemini reasoning, Gmail notification, Google Sheets
+execution, guardrailed Gemma 4 31B Cloud reasoning through Ollama, Gmail notification, Google Sheets
 persistence, and transaction analytics. It is not a chatbot or a CRUD wrapper.
 
 ## Documentation
@@ -13,6 +13,7 @@ persistence, and transaction analytics. It is not a chatbot or a CRUD wrapper.
 - [Documentation center](docs/README.md)
 - [Developer handbook](docs/DEVELOPER_GUIDE.md)
 - [Consumer guide and deliverable](docs/CONSUMER_DELIVERABLE.md)
+- [Manual testing and agentic verification guide](docs/MANUAL_TESTING_GUIDE.md)
 - [Architecture reference](docs/architecture.md)
 - [Fifteen-phase delivery checklist](docs/phase-checklist.md)
 
@@ -22,7 +23,7 @@ persistence, and transaction analytics. It is not a chatbot or a CRUD wrapper.
 - Classifies freshness and selling urgency from catch age and quantity.
 - Retrieves only stored markets and buyers—never model-invented records.
 - Ranks buyers with visible 35/25/20/10/10 weighted components.
-- Uses guardrailed Gemini structured output when enabled.
+- Uses `gemma4:31b-cloud` through Ollama when enabled, with local Pydantic validation.
 - Routes to direct sale, negotiation, or alternate-market branches.
 - Sends a templated buyer offer through Gmail SMTP on direct-sale routes.
 - Persists every run and generates live Plotly dashboard metrics.
@@ -37,7 +38,7 @@ See [the detailed architecture](docs/architecture.md) and the
 flowchart LR
     Fisher["Fisher submission"] --> Graph["LangGraph agent"]
     Graph --> Tools["Retrieval and scoring tools"]
-    Tools --> Decision["Gemini plus policy decision"]
+    Tools --> Decision["Gemma 4 Cloud plus policy decision"]
     Decision -->|"direct sale"| Buyer["Buyer notification"]
     Decision -->|"negotiate"| Negotiation["Negotiation strategy"]
     Decision -->|"no buyer"| Market["Alternate market"]
@@ -54,7 +55,7 @@ MatsyaLink-AI/
 ├── config.py                       # environment and integration switches
 ├── models.py                       # Fisher, Catch, Market, Buyer, etc.
 ├── state.py                        # strongly typed LangGraph state
-├── prompts.py                      # grounded Gemini and email prompts
+├── prompts.py                      # grounded Gemma 4 and email prompts
 ├── tools.py                        # six graph-callable tools
 ├── repositories.py                 # Google Sheets + local CSV adapters
 ├── nodes.py                        # eleven dedicated workflow node functions
@@ -121,22 +122,32 @@ The tabs are `Market Prices`, `Buyers`, and `Transactions`. Keep the seeded
 headers unchanged. The repository abstraction makes moving to a production
 database a localized change.
 
-## Gemini setup
+## Gemma 4 31B Cloud setup
 
-Set these values in `.env` and restart the app:
+The default integration calls a signed-in local Ollama daemon, which offloads the
+cloud model. Install Ollama, sign in, and make the model available:
 
-```dotenv
-GEMINI_ENABLED=true
-GEMINI_API_KEY=your_api_key
-GEMINI_MODEL=gemini-2.5-flash
+```powershell
+ollama signin
+ollama pull gemma4:31b-cloud
 ```
 
-Gemini returns the `DecisionOutput` schema. The node rejects an output if its
-decision violates price policy or if a buyer/market ID is absent from retrieved
-records. The deterministic fallback keeps the demo operational during API
-failure or quota exhaustion. This follows the official guidance to validate
-structured output semantically after generation:
-[Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output).
+Then set these values in `.env` and restart the app:
+
+```dotenv
+OLLAMA_ENABLED=true
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=gemma4:31b-cloud
+```
+
+For direct Ollama Cloud API access, set `OLLAMA_HOST=https://ollama.com` and
+`OLLAMA_API_KEY`. Ollama Cloud does not currently enforce structured-output
+schemas, so MatsyaLink places the `DecisionOutput` JSON Schema in the prompt,
+extracts one JSON object, and validates it locally with Pydantic. The node rejects
+outputs that violate price policy or reference an unknown buyer/market ID. The
+deterministic fallback keeps the workflow operational during API or parsing
+failure. See the official [Ollama Cloud documentation](https://docs.ollama.com/cloud)
+and [Gemma 4 model page](https://registry.ollama.com/library/gemma4%3A31b-cloud).
 
 ## Gmail SMTP setup
 

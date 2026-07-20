@@ -135,7 +135,7 @@ http://localhost:8501
 ```
 
 The default mode uses demonstration records and does not send real email. No
-Gemini, Google, or Gmail credential is needed for the first run.
+Ollama, Google, or Gmail credential is needed for the first run.
 
 ### Stop the product
 
@@ -158,7 +158,7 @@ Analytics Dashboard
 The sidebar also shows the active operating mode:
 
 - `Data: Local demo CSV` or `Data: Google Sheets`
-- `Reasoning: Deterministic demo policy` or `Reasoning: Gemini`
+- `Reasoning: Deterministic demo policy` or `Reasoning: Gemma 4 31B Cloud`
 
 ## 8. Page 1 — Catch Submission
 
@@ -506,7 +506,7 @@ email and never invents a missing Rohu buyer.
 
 ### Minute 4–5: Show outcomes and scale path
 
-Open Analytics Dashboard. Explain Google Sheets integration, Gemini guardrails,
+Open Analytics Dashboard. Explain Google Sheets integration, Gemma 4 guardrails,
 Gmail dry-run/live modes, and the production roadmap.
 
 ## 16. Operator setup for Google Sheets
@@ -547,21 +547,30 @@ python scripts/seed_google_sheets.py
 The seeding script clears the three tabs before inserting bundled demonstration
 data. Export any valuable transaction history before running it.
 
-## 17. Operator setup for Gemini
+## 17. Operator setup for Gemma 4 31B Cloud
 
-Gemini improves the written decision explanation and negotiation strategy. The
-business route remains protected by deterministic rules.
+Gemma 4 improves the written decision explanation and negotiation strategy. The
+business route remains protected by deterministic rules and local schema
+validation.
 
-```dotenv
-GEMINI_ENABLED=true
-GEMINI_API_KEY=your_api_key
-GEMINI_MODEL=gemini-2.5-flash
+Install Ollama, sign in, and pull the cloud model pointer:
+
+```powershell
+ollama signin
+ollama pull gemma4:31b-cloud
 ```
 
-Restart Streamlit after changing these settings. The sidebar should display
-`Reasoning: Gemini`.
+```dotenv
+OLLAMA_ENABLED=true
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=gemma4:31b-cloud
+```
 
-If Gemini is unavailable, the system automatically uses deterministic policy
+For direct API access through `https://ollama.com`, also configure an
+`OLLAMA_API_KEY`. Restart Streamlit after changing these settings. The interface
+should display `Reasoning: Gemma 4 31B Cloud`.
+
+If Gemma/Ollama is unavailable, the system automatically uses deterministic policy
 reasoning. Catch processing can still complete.
 
 ## 18. Operator setup for Gmail
@@ -702,10 +711,11 @@ Possible causes:
 It may have zero freshness compatibility. The system displays retrieved scores
 for transparency but refuses to select a completely incompatible buyer.
 
-### Gemini is not active
+### Gemma 4 is not active
 
-Check that `GEMINI_ENABLED=true`, the API key is present, and the application was
-restarted. If the call fails, deterministic reasoning is expected behavior.
+Check that `OLLAMA_ENABLED=true`, Ollama is running and signed in, the model has
+been pulled, and the application was restarted. For direct cloud access, also
+check `OLLAMA_API_KEY`. If the call fails, deterministic reasoning is expected.
 
 ### Email says dry-run
 
@@ -812,7 +822,7 @@ A stakeholder can accept the prototype deliverable when they can confirm:
 - [ ] No result contains an invented buyer.
 - [ ] Every run receives a trace ID or records a storage failure.
 - [ ] Dashboard data updates from the transaction ledger.
-- [ ] Google Sheets, Gemini, and Gmail configuration paths are documented.
+- [ ] Google Sheets, Gemma 4/Ollama, and Gmail configuration paths are documented.
 - [ ] Default operation performs no live email side effect.
 - [ ] Product limitations and privacy responsibilities are disclosed.
 
@@ -842,7 +852,7 @@ MatsyaLink version/date:
 Operating system:
 Python version:
 Storage mode: CSV / Google Sheets
-Reasoning mode: Deterministic / Gemini
+Reasoning mode: Deterministic / Gemma 4 31B Cloud
 Email mode: Dry-run / Live
 Trace ID:
 First unexpected node:
@@ -853,4 +863,3 @@ Steps to reproduce:
 
 Do not include API keys, SMTP passwords, or service-account JSON in a support
 request.
-

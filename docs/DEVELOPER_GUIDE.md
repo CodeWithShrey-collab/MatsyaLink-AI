@@ -23,7 +23,7 @@ This handbook is for developers who need to:
 
 - understand the runtime from submission to persistence;
 - modify a node, tool, model, repository, or route safely;
-- configure Gemini, Google Sheets, or Gmail;
+- configure Gemma 4 through Ollama, Google Sheets, or Gmail;
 - diagnose an execution from its append-only trace;
 - run and extend the tests;
 - prepare the prototype for a more durable deployment.
@@ -64,7 +64,7 @@ flowchart TD
     U --> MR["Retrieve markets tool"]
     MR --> BR["Retrieve buyers tool"]
     BR --> BS["Score buyers tool"]
-    BS --> D["Policy plus guardrailed Gemini"]
+    BS --> D["Policy plus guardrailed Gemma 4 Cloud"]
     D -->|"direct_sale"| DP["Direct sale proposal"]
     D -->|"negotiate"| NP["Negotiation proposal"]
     D -->|"alternate_market"| AP["Fallback proposal"]
@@ -87,7 +87,7 @@ flowchart TD
 3. **Retrieval precedes reasoning.** The decision node sees only records already
    returned by tools.
 4. **Policy constrains the model.** Deterministic rules establish the allowed
-   outcome before Gemini produces an explanation.
+   outcome before Gemma 4 produces an explanation.
 5. **Cloud services are adapters.** CSV, deterministic reasoning, and dry-run
    email keep local demos operational without credentials.
 6. **Every route converges on storage.** Valid business outcomes and rejected
@@ -137,7 +137,7 @@ G:\Hackathons\IBM\
 | Module | Responsibility | May perform side effects |
 |---|---|---:|
 | `config.py` | Environment parsing, paths, readiness flags | Reads environment and `.env` |
-| `models.py` | Domain and Gemini output validation | No |
+| `models.py` | Domain and Gemma 4 output validation | No |
 | `state.py` | Graph state contract, log reducer, initialization | No |
 | `prompts.py` | System, decision, and email templates | No |
 | `tools.py` | Retrieval, score, SMTP, storage, analytics capabilities | Yes |
@@ -155,7 +155,7 @@ G:\Hackathons\IBM\
 - Python 3.11 or newer
 - PowerShell, Bash, or another shell
 - Internet access only for dependency installation and optional cloud services
-- Optional Gemini API key
+- Optional Ollama account/API key and access to `gemma4:31b-cloud`
 - Optional Google service account and workbook
 - Optional Gmail account with an app password
 
@@ -272,7 +272,7 @@ sheet embeds the current price in each `Market` record.
   available for future API boundaries.
 - `Notification` represents a composed or delivered message.
 - `Transaction` is the persisted execution record.
-- `DecisionOutput` is the restricted schema accepted from Gemini.
+- `DecisionOutput` is the restricted schema accepted from Gemma 4 after local validation.
 
 ## 6. LangGraph state contract
 
@@ -459,7 +459,7 @@ are sorted by descending total and then buyer name for deterministic ties.
 
 **Reads:** catch, freshness, urgency, markets, buyers, scores  
 **Writes:** selection, expected revenue, decision, lifecycle/log fields  
-**External reasoning:** optional Gemini
+**External reasoning:** optional Gemma 4 31B Cloud through Ollama
 
 The decision node first establishes a policy outcome:
 
@@ -470,14 +470,14 @@ The decision node first establishes a policy outcome:
 4. Otherwise choose `negotiate`.
 
 The best market is ordered by price descending, demand descending, and distance
-ascending. Gemini may provide the explanation and negotiation strategy, but the
+ascending. Gemma 4 may provide the explanation and negotiation strategy, but the
 output is accepted only when:
 
 - its decision equals the policy outcome;
 - every non-null buyer ID exists in retrieved buyers;
 - every non-null market ID exists in retrieved markets.
 
-Any Gemini exception or rejected output uses deterministic text and records
+Any Ollama/Gemma exception or rejected output uses deterministic text and records
 `reasoning_source=deterministic_policy`.
 
 ### 8.8 Proposal generation
@@ -613,28 +613,46 @@ full freshness compatibility.
 
 Expected revenue is `250 × 315 = INR 78,750`.
 
-## 11. Gemini integration
+## 11. Gemma 4 31B Cloud integration
 
-Gemini is optional and disabled by default.
+`gemma4:31b-cloud` is accessed through Ollama and is optional at runtime. It is
+disabled by default so the credential-free deterministic demonstration remains
+available.
 
-```dotenv
-GEMINI_ENABLED=true
-GEMINI_API_KEY=your_key
-GEMINI_MODEL=gemini-2.5-flash
+For a signed-in local Ollama daemon that offloads the cloud model:
+
+```powershell
+ollama signin
+ollama pull gemma4:31b-cloud
 ```
 
-The implementation uses `google-genai` and a `GenerateContentConfig` with:
+```dotenv
+OLLAMA_ENABLED=true
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=gemma4:31b-cloud
+```
 
-- temperature `0.1`;
-- JSON response MIME type;
-- Pydantic `DecisionOutput` response schema.
+For direct Ollama Cloud API access:
 
-The prompt receives serialized catch, route policy, eligible records, and
-ordered scores. It is not given permission to broaden the candidate set.
+```dotenv
+OLLAMA_ENABLED=true
+OLLAMA_HOST=https://ollama.com
+OLLAMA_API_KEY=your_ollama_api_key
+OLLAMA_MODEL=gemma4:31b-cloud
+```
+
+The implementation uses the official `ollama` Python client and sends system and
+user chat messages. The user prompt receives the serialized catch, policy route,
+eligible records, ordered scores, and `DecisionOutput.model_json_schema()`.
+Ollama Cloud currently does not support enforced structured outputs, so the
+application does not trust response formatting. `_parse_decision_output` scans
+for one JSON object and validates it with Pydantic before the result reaches
+business logic. Markdown, thinking markers, malformed JSON, and invalid enum or
+field values cause deterministic fallback.
 
 ### Model trust boundary
 
-Gemini does not:
+Gemma 4 does not:
 
 - retrieve storage records;
 - calculate authoritative scores;
@@ -643,7 +661,7 @@ Gemini does not:
 - change the allowed route;
 - introduce a new buyer or market ID.
 
-Gemini may:
+Gemma 4 may:
 
 - make the rationale more natural and context-aware;
 - summarize evidence;
@@ -839,9 +857,10 @@ analytics remain available because they are read from the repository.
 | `APP_NAME` | `MatsyaLink AI` | Never | Display/application label |
 | `APP_ENV` | `development` | Never | Environment label |
 | `APP_TIMEZONE` | `Asia/Kolkata` | Never | Catch-age calculation |
-| `GEMINI_ENABLED` | `false` | Gemini reasoning | Feature switch |
-| `GEMINI_API_KEY` | empty | Gemini reasoning | API authentication |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini reasoning | Model identifier |
+| `OLLAMA_ENABLED` | `false` | Gemma 4 reasoning | Feature switch |
+| `OLLAMA_HOST` | `http://localhost:11434` | Gemma/Ollama reasoning | Local proxy or direct cloud host |
+| `OLLAMA_API_KEY` | empty | Direct Ollama Cloud API | Bearer authentication |
+| `OLLAMA_MODEL` | `gemma4:31b-cloud` | Gemma/Ollama reasoning | Model identifier |
 | `USE_GOOGLE_SHEETS` | `false` | Sheets storage | Adapter switch |
 | `GOOGLE_SHEET_ID` | empty | Sheets storage | Workbook key |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | empty | File credentials | Credential path |
@@ -868,7 +887,7 @@ Expected baseline:
 
 ```text
 ........
-8 passed
+12 passed
 ```
 
 ### Test coverage by behavior
@@ -883,6 +902,10 @@ Expected baseline:
 | Market retrieval | Tool returns only requested fish type |
 | Buyer hallucination guard | Unavailable category returns no buyer |
 | Analytics shape | Dashboard contract includes required metrics |
+| Agentic trace evidence | Conditional branch name and executed tools are visible |
+| Gemma response parsing | Fenced/thinking-tagged JSON is extracted and validated |
+| Ollama client contract | Configured host, authentication, model, and chat prompt are used |
+| Graph namespace safety | Executable node names do not collide with state channel names |
 
 `tests/conftest.py` creates an isolated repository for every test, copies the
 read-only market and buyer fixtures, and prevents test transactions from
@@ -928,8 +951,8 @@ node. Useful detail fields include:
 - catch age in hours;
 - retrieved and eligible record counts;
 - market reference price;
-- whether Gemini was used;
-- Gemini fallback exception class;
+- whether Gemma 4 was used;
+- Ollama/Gemma fallback exception class;
 - email recipient and status;
 - transaction ID.
 
@@ -941,7 +964,7 @@ node. Useful detail fields include:
 | Zero markets | `market_retrieval` | Fish spelling, distance, sheet schema |
 | Zero buyers | `buyer_retrieval` | No accepted type, Low demand, distance, zero capacity |
 | Fallback with buyers listed | `buyer_scores` | All candidates have zero freshness compatibility |
-| Deterministic reasoning unexpectedly | `decision.details` | Gemini disabled, missing key, API error, invalid model output |
+| Deterministic reasoning unexpectedly | `decision.details` | Ollama disabled, daemon not signed in/running, missing cloud key, API error, or invalid model output |
 | Email not sent | `notification` | Dry-run, missing SMTP values, network/authentication error |
 | Transaction not visible | `persistence` | Sheets permission/schema issue or file access issue |
 
@@ -959,9 +982,9 @@ python graph.py
 |---|---|
 | Invalid fisher/catch | Route to rejection persistence and final response |
 | Malformed market/buyer row | Pydantic raises from retrieval; graph invocation stops |
-| Gemini disabled | Deterministic policy rationale |
-| Gemini call fails | Caught in decision node; deterministic fallback |
-| Gemini violates route/IDs | Output ignored; deterministic fallback |
+| Ollama/Gemma disabled | Deterministic policy rationale |
+| Ollama/Gemma call fails | Caught in decision node; deterministic fallback |
+| Gemma violates route/IDs or response schema | Output ignored; deterministic fallback |
 | SMTP unavailable | Node records `failed`; storage and response continue |
 | Transaction storage fails | Node records failure; final response continues |
 | Analytics storage read fails | Dashboard invocation raises to Streamlit |
@@ -1105,7 +1128,7 @@ frontend-only approval logic that can be bypassed by another graph caller.
 - `InMemorySaver` does not survive process restart.
 - CSV locking is process-local.
 - Analytics use every stored row and do not deduplicate retries.
-- Gemini improves explanation but policy behavior remains deterministic.
+- Gemma 4 improves explanation but policy behavior remains deterministic.
 - The frontend is English-only and assumes INR/kg.
 
 These limitations are appropriate for a hackathon prototype but must be stated
@@ -1142,4 +1165,3 @@ A release candidate is ready for hackathon delivery when:
 8. A transaction appears in the configured repository.
 9. Dashboard metrics update after the run.
 10. No credential or real personal data is committed.
-

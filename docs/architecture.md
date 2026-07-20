@@ -13,7 +13,7 @@ flowchart TD
     D --> E["Market retrieval tool"]
     E --> F["Buyer retrieval tool"]
     F --> G["Weighted buyer scoring tool"]
-    G --> H["Guardrailed Gemini decision"]
+    G --> H["Guardrailed Gemma 4 Cloud decision"]
     H -->|"offer meets minimum"| I["Direct sale proposal"]
     H -->|"offer below minimum"| J["Negotiation proposal"]
     H -->|"no buyer"| L["Alternate market proposal"]
@@ -31,7 +31,7 @@ flowchart TD
 |---|---|---|
 | Experience | `templates/frontend.py` | Submission, live graph trace, recommendations, dashboard |
 | Orchestration | `graph.py`, `nodes.py`, `state.py` | State transitions, branching, checkpointer, trace |
-| Reasoning | `prompts.py`, decision node | Constrained Gemini output with deterministic safety policy |
+| Reasoning | `prompts.py`, decision node | Gemma 4 Cloud JSON output with local Pydantic validation and deterministic safety policy |
 | Capabilities | `tools.py` | Retrieval, scoring, SMTP, persistence, analytics |
 | Domain | `models.py` | Validated and extensible Pydantic entities |
 | Infrastructure | `repositories.py`, `config.py` | Google Sheets/CSV adapters and environment configuration |
@@ -41,7 +41,6 @@ flowchart TD
 - Buyer and market IDs must occur in retrieved records.
 - Direct sale requires the buyer's stored offer to meet the fisher's minimum.
 - The score is recomputable from five visible components.
-- A Gemini failure falls back to the same deterministic policy without stopping
+- A Gemma/Ollama failure falls back to the same deterministic policy without stopping
   persistence or the fisher response.
 - Gmail is isolated behind an email tool and defaults to dry-run.
-

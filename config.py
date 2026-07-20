@@ -31,10 +31,13 @@ class Settings:
     environment: str = os.getenv("APP_ENV", "development")
     timezone: str = os.getenv("APP_TIMEZONE", "Asia/Kolkata")
 
-    # Gemini is opt-in so a hackathon demo stays deterministic without a key.
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    gemini_enabled: bool = _as_bool(os.getenv("GEMINI_ENABLED"), False)
+    # Gemma 4 is served through Ollama. The default host uses a signed-in local
+    # Ollama daemon to offload the ``-cloud`` model; ``https://ollama.com`` plus
+    # an API key can be used for direct cloud API access.
+    ollama_enabled: bool = _as_bool(os.getenv("OLLAMA_ENABLED"), False)
+    ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    ollama_api_key: str = os.getenv("OLLAMA_API_KEY", "")
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "gemma4:31b-cloud")
 
     # A service-account file or a JSON value may be supplied.
     google_sheet_id: str = os.getenv("GOOGLE_SHEET_ID", "")
@@ -80,10 +83,12 @@ class Settings:
 
     @property
     def llm_ready(self) -> bool:
-        return bool(self.gemini_enabled and self.gemini_api_key)
+        if not self.ollama_enabled:
+            return False
+        is_direct_cloud = self.ollama_host.rstrip("/") == "https://ollama.com"
+        return bool(not is_direct_cloud or self.ollama_api_key)
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-

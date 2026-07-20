@@ -9,6 +9,7 @@ documentation for MatsyaLink AI.
 |---|---|---|
 | Fisher, cooperative, buyer, judge, or demo operator | [Consumer guide and deliverable](CONSUMER_DELIVERABLE.md) | Product purpose, setup, screens, decisions, demonstrations, responsible use, troubleshooting, acceptance |
 | Developer, maintainer, technical reviewer, or deployer | [Developer handbook](DEVELOPER_GUIDE.md) | Architecture, schemas, state ownership, nodes, tools, formulas, integrations, tests, security, extension, roadmap |
+| QA reviewer, judge, or demonstration operator | [Manual testing and agentic verification guide](MANUAL_TESTING_GUIDE.md) | Reproducible tests for every feature, three routes, integrations, failures, and agentic proof |
 | Architect or technical presenter | [Architecture reference](architecture.md) | System diagram, boundaries, and decision guarantees |
 | Project reviewer | [Fifteen-phase checklist](phase-checklist.md) | Requirement-to-implementation mapping |
 | First-time visitor | [Main project README](../README.md) | Concise overview and quick start |
@@ -19,9 +20,11 @@ documentation for MatsyaLink AI.
 flowchart TD
     R["Main README"] --> C["Consumer deliverable"]
     R --> D["Developer handbook"]
+    R --> T["Manual testing guide"]
     D --> A["Architecture reference"]
     D --> P["Phase checklist"]
     C --> P
+    T --> A
 ```
 
 ## Source-of-truth order
@@ -65,4 +68,3 @@ python scripts/run_demo.py
 
 The demo runner persists transactions. Use a disposable ledger when a clean
 transaction history is required.
-
