@@ -16,6 +16,7 @@ def test_analytics_shape():
     expected = {
         "total_catches_processed",
         "average_revenue",
+        "total_expected_revenue",
         "success_rate",
         "negotiation_rate",
         "no_buyer_rate",

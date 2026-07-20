@@ -5,3 +5,4 @@ __pycache__/
 *.py[cod]
 .streamlit/secrets.toml
 service-account*.json
+graphify-out/

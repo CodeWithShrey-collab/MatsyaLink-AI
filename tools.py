@@ -7,6 +7,7 @@ routing are owned entirely by the LangGraph workflow.
 from __future__ import annotations
 
 import smtplib
+import ssl
 from collections import Counter
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -142,7 +143,7 @@ def send_buyer_notification(
     message.set_content(body)
 
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
-        smtp.starttls()
+        smtp.starttls(context=ssl.create_default_context())
         smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(message)
     return {

@@ -803,8 +803,9 @@ def render_analytics() -> None:
         with st.container(border=True):
             card_header("🧠", "Reasoning Engine")
             st.markdown(
-                badge("Gemma 4 31B Cloud" if settings.llm_ready else "Deterministic Demo Policy", tone),
-                badge("Gemini" if settings.llm_ready else "Deterministic Demo Policy", tone),
+                badge("Gemma 4 31B Cloud" if settings.llm_ready else "Deterministic Demo Policy", tone)
+                + "&nbsp;&nbsp;"
+                + badge("Gemini" if settings.llm_ready else "Deterministic Demo Policy", tone),
                 unsafe_allow_html=True,
             )
 
@@ -829,7 +830,7 @@ with st.sidebar:
     st.markdown('<div class="ml-eyebrow">System Status</div>', unsafe_allow_html=True)
     st.markdown(
         f"{badge('Google Sheets' if settings.cloud_sheets_ready else 'Local Demo CSV', 'teal' if settings.cloud_sheets_ready else 'amber')}"
-        f"&nbsp;&nbsp;{badge('Gemma 4 Cloud' if settings.llm_ready else 'Demo Policy', 'teal' if settings.llm_ready else 'amber')}",
+        f"&nbsp;&nbsp;{badge('Gemma 4 Cloud' if settings.llm_ready else 'Demo Policy', 'teal' if settings.llm_ready else 'amber')}"
         f"&nbsp;&nbsp;{badge('Gemini' if settings.llm_ready else 'Demo Policy', 'teal' if settings.llm_ready else 'amber')}",
         unsafe_allow_html=True,
     )
