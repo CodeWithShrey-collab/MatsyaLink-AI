@@ -46,13 +46,14 @@ class MarketplaceRepository(ABC):
 class CSVRepository(MarketplaceRepository):
     """Simple, persistent local adapter that mirrors the three sheet tabs."""
 
-    _write_lock = threading.Lock()
-
     def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.market_file = data_dir / "market_prices.csv"
         self.buyers_file = data_dir / "buyers.csv"
         self.transactions_file = data_dir / "transactions.csv"
+        # Instance-level lock so concurrent test runs with separate tmp
+        # directories do not block or interfere with each other.
+        self._write_lock = threading.Lock()
 
     @staticmethod
     def _read(path: Path) -> list[dict[str, Any]]:

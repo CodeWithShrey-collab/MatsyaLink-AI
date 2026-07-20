@@ -52,6 +52,13 @@ def get_available_buyers(fish_type: str) -> list[dict[str, Any]]:
 def _freshness_compatible(
     catch_freshness: FreshnessStatus, buyer_acceptance: FreshnessStatus
 ) -> float:
+    """Return a 0–100 compatibility score for the catch/buyer freshness pair.
+
+    - Full score (100) when the catch meets or exceeds the buyer's requirement.
+    - Partial score (``settings.freshness_partial_score``) when the catch is
+      exactly one grade below the requirement.
+    - Zero when incompatibility is too great.
+    """
     rank = {
         FreshnessStatus.LOW: 1,
         FreshnessStatus.MODERATE: 2,
@@ -63,7 +70,7 @@ def _freshness_compatible(
     if supplied >= required:
         return 100.0
     if supplied == required - 1:
-        return 40.0
+        return get_settings().freshness_partial_score
     return 0.0
 
 
@@ -75,38 +82,45 @@ def calculate_buyer_score(
     freshness_status: str,
     market_reference_price: float,
 ) -> dict[str, Any]:
-    """Compute a transparent weighted buyer score using the mandated weights."""
+    """Compute a transparent weighted buyer score using the configured weights."""
 
+    settings = get_settings()
     record = Buyer.model_validate(buyer)
     reference = max(float(market_reference_price), 1.0)
+
     price_score = min(record.price_offered_per_kg / reference, 1.0) * 100
     distance_score = max(
         0.0,
         100 * (1 - record.distance_km / max(float(max_travel_distance_km), 1.0)),
     )
     demand_score = {
-        DemandLevel.HIGH: 100.0,
-        DemandLevel.MEDIUM: 65.0,
-        DemandLevel.LOW: 25.0,
+        DemandLevel.HIGH: settings.score_demand_high,
+        DemandLevel.MEDIUM: settings.score_demand_medium,
+        DemandLevel.LOW: settings.score_demand_low,
     }[record.current_demand]
     capacity_score = min(record.capacity_kg / max(float(quantity_kg), 1.0), 1.0) * 100
     freshness_score = _freshness_compatible(
         FreshnessStatus(freshness_status), record.freshness_acceptance
     )
+
     weighted_score = (
-        price_score * 0.35
-        + distance_score * 0.25
-        + demand_score * 0.20
-        + capacity_score * 0.10
-        + freshness_score * 0.10
+        price_score * settings.score_weight_price
+        + distance_score * settings.score_weight_distance
+        + demand_score * settings.score_weight_demand
+        + capacity_score * settings.score_weight_capacity
+        + freshness_score * settings.score_weight_freshness
+    )
+
+    # Format weight labels as whole percentages for human-readable reasoning.
+    w = settings
+    reasoning = (
+        f"Price {price_score:.0f}/100 ({w.score_weight_price:.0%}), "
+        f"distance {distance_score:.0f}/100 ({w.score_weight_distance:.0%}), "
+        f"demand {demand_score:.0f}/100 ({w.score_weight_demand:.0%}), "
+        f"capacity {capacity_score:.0f}/100 ({w.score_weight_capacity:.0%}), "
+        f"freshness compatibility {freshness_score:.0f}/100 ({w.score_weight_freshness:.0%})."
     )
     expected_revenue = min(record.capacity_kg, quantity_kg) * record.price_offered_per_kg
-    reasoning = (
-        f"Price {price_score:.0f}/100 (35%), distance {distance_score:.0f}/100 "
-        f"(25%), demand {demand_score:.0f}/100 (20%), capacity "
-        f"{capacity_score:.0f}/100 (10%), freshness compatibility "
-        f"{freshness_score:.0f}/100 (10%)."
-    )
     score = BuyerScore(
         buyer_id=record.buyer_id,
         buyer_name=record.buyer_name,
@@ -142,7 +156,9 @@ def send_buyer_notification(
     message["Subject"] = subject
     message.set_content(body)
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
+    with smtplib.SMTP(
+        settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_sec
+    ) as smtp:
         smtp.starttls(context=ssl.create_default_context())
         smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(message)

@@ -49,21 +49,27 @@ negotiation, give a short practical strategy for the fisher.
 EMAIL_SUBJECT_TEMPLATE = "MatsyaLink catch offer: {quantity:.1f} kg {fish_type}"
 
 
-EMAIL_BODY_TEMPLATE = """Dear {buyer_name},
+def get_email_body_template(currency_code: str = "INR") -> str:
+    """Return the buyer notification body template with the configured currency.
+
+    Using a function instead of a module-level constant lets ``currency_code``
+    be injected at call time from ``settings.currency_code`` rather than being
+    baked in at import time.
+    """
+    return f"""Dear {{buyer_name}},
 
 MatsyaLink AI has matched your current demand with a fresh catch offer.
 
-Fish type: {fish_type}
-Quantity available: {quantity:.1f} kg
-Fisher location: {location}
-Expected minimum price: INR {expected_price:.2f}/kg
-Your listed offer: INR {offered_price:.2f}/kg
-Catch freshness: {freshness}
-Estimated order value: INR {revenue:,.2f}
+Fish type: {{fish_type}}
+Quantity available: {{quantity:.1f}} kg
+Fisher location: {{location}}
+Expected minimum price: {currency_code} {{expected_price:.2f}}/kg
+Your listed offer: {currency_code} {{offered_price:.2f}}/kg
+Catch freshness: {{freshness}}
+Estimated order value: {currency_code} {{revenue:,.2f}}
 
 Please reply to confirm availability and collection arrangements. This offer is
 generated from the fisher's submitted details and your stored demand record.
 
 Regards,
-MatsyaLink AI
-""".strip()
+MatsyaLink AI""".strip()

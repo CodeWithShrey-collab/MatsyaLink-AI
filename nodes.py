@@ -24,9 +24,9 @@ from models import (
 )
 from prompts import (
     DECISION_PROMPT,
-    EMAIL_BODY_TEMPLATE,
     EMAIL_SUBJECT_TEMPLATE,
     SYSTEM_PROMPT,
+    get_email_body_template,
 )
 from state import AgentState, log_event
 from tools import (
@@ -118,9 +118,9 @@ def freshness_analysis_node(state: AgentState) -> dict[str, Any]:
     now = datetime.now(ZoneInfo(settings.timezone))
     caught = catch.catch_time.astimezone(ZoneInfo(settings.timezone))
     age_hours = max(0.0, (now - caught).total_seconds() / 3600)
-    if age_hours <= 6:
+    if age_hours <= settings.freshness_fresh_hours:
         freshness = FreshnessStatus.FRESH
-    elif age_hours <= 12:
+    elif age_hours <= settings.freshness_moderate_hours:
         freshness = FreshnessStatus.MODERATE
     else:
         freshness = FreshnessStatus.LOW
@@ -131,17 +131,22 @@ def freshness_analysis_node(state: AgentState) -> dict[str, Any]:
             "freshness_analysis",
             "completed",
             f"Catch classified as {freshness.value}.",
-            {"age_hours": round(age_hours, 2)},
+            {
+                "age_hours": round(age_hours, 2),
+                "fresh_threshold_hours": settings.freshness_fresh_hours,
+                "moderate_threshold_hours": settings.freshness_moderate_hours,
+            },
         ),
     }
 
 
 def urgency_analysis_node(state: AgentState) -> dict[str, Any]:
+    settings = get_settings()
     freshness = FreshnessStatus(state["freshness_status"])
     quantity = float(state["quantity"])
-    if freshness == FreshnessStatus.LOW or quantity >= 750:
+    if freshness == FreshnessStatus.LOW or quantity >= settings.urgency_high_qty_kg:
         urgency = UrgencyLevel.HIGH
-    elif freshness == FreshnessStatus.MODERATE or quantity >= 300:
+    elif freshness == FreshnessStatus.MODERATE or quantity >= settings.urgency_medium_qty_kg:
         urgency = UrgencyLevel.MEDIUM
     else:
         urgency = UrgencyLevel.LOW
@@ -152,7 +157,12 @@ def urgency_analysis_node(state: AgentState) -> dict[str, Any]:
             "urgency_analysis",
             "completed",
             f"Selling urgency classified as {urgency.value}.",
-            {"freshness": freshness.value, "quantity_kg": quantity},
+            {
+                "freshness": freshness.value,
+                "quantity_kg": quantity,
+                "high_threshold_kg": settings.urgency_high_qty_kg,
+                "medium_threshold_kg": settings.urgency_medium_qty_kg,
+            },
         ),
     }
 
@@ -179,21 +189,63 @@ def market_retrieval_node(state: AgentState) -> dict[str, Any]:
 
 def buyer_retrieval_node(state: AgentState) -> dict[str, Any]:
     catch = Catch.model_validate(state["validated_submission"])
+    # records = buyers that match fish_type AND have non-Low demand (tool-level filter).
     records = get_available_buyers.invoke({"fish_type": catch.fish_type})
+
+    excluded_distance = [
+        r for r in records
+        if float(r["distance_km"]) > catch.max_travel_distance_km
+    ]
+    excluded_capacity = [
+        r for r in records
+        if float(r["distance_km"]) <= catch.max_travel_distance_km
+        and float(r["capacity_kg"]) <= 0
+    ]
     eligible = [
         record
         for record in records
         if float(record["distance_km"]) <= catch.max_travel_distance_km
         and float(record["capacity_kg"]) > 0
     ]
+
+    # Build a plain-language reason when no buyers pass all filters.
+    if not eligible:
+        if not records:
+            no_buyer_reason = (
+                f"No buyers registered for fish type '{catch.fish_type}' with active demand."
+            )
+        elif len(excluded_distance) == len(records):
+            no_buyer_reason = (
+                f"All {len(records)} matching buyer(s) exceed the "
+                f"{catch.max_travel_distance_km:.0f} km travel limit "
+                f"(nearest is {min(float(r['distance_km']) for r in records):.0f} km)."
+            )
+        else:
+            no_buyer_reason = (
+                f"Buyers found for fish type but {len(excluded_distance)} excluded by "
+                f"distance and {len(excluded_capacity)} by zero capacity."
+            )
+        log_status = "warning"
+    else:
+        no_buyer_reason = None
+        log_status = "completed"
+
     return {
         "available_buyers": eligible,
         "agent_status": "buyers_retrieved",
         "execution_logs": log_event(
             "buyer_retrieval",
-            "completed",
-            f"Retrieved {len(eligible)} eligible buyer record(s).",
-            {"tool": "get_available_buyers", "retrieved": len(records)},
+            log_status,
+            no_buyer_reason or f"Retrieved {len(eligible)} eligible buyer record(s).",
+            {
+                "tool": "get_available_buyers",
+                "fish_type": catch.fish_type,
+                "fish_type_and_demand_matched": len(records),
+                "excluded_by_distance": len(excluded_distance),
+                "excluded_by_capacity": len(excluded_capacity),
+                "eligible": len(eligible),
+                "max_travel_distance_km": catch.max_travel_distance_km,
+            },
         ),
     }
 
@@ -249,18 +301,39 @@ def _best_market(markets: list[dict[str, Any]]) -> dict[str, Any] | None:
     )[0]
 
 
-def _policy_decision(state: AgentState) -> tuple[DecisionType, dict[str, Any] | None]:
-    # A numerically high score cannot override complete freshness incompatibility.
+def _policy_decision(
+    state: AgentState,
+) -> tuple[DecisionType, dict[str, Any] | None, str | None]:
+    """Determine the decision type from buyer scores.
+
+    Returns a 3-tuple: (DecisionType, best_buyer_or_None, reason_or_None).
+    ``reason`` is set only for ALTERNATE_MARKET to explain which filter
+    eliminated buyers, so it can be surfaced in the final output.
+    """
+    scores = state["buyer_scores"]
+
+    if not state["available_buyers"]:
+        # No buyers survived the retrieval filters (fish type / distance / capacity).
+        reason = (
+            "No eligible buyers were found for this fish type and travel radius. "
+            "Check execution logs for the per-filter breakdown."
+        )
+        return DecisionType.ALTERNATE_MARKET, None, reason
+
+    # Buyers exist but may be freshness-incompatible with the catch.
+    freshness_blocked = all(float(s["freshness_score"]) == 0 for s in scores)
+    if freshness_blocked:
+        reason = (
+            f"All {len(scores)} available buyer(s) require a fresher catch than the current "
+            f"'{state['freshness_status']}' status allows. "
+            "Freshness incompatibility score was 0 for every candidate."
+        )
+        return DecisionType.ALTERNATE_MARKET, None, reason
+
+    # At least one buyer is freshness-compatible — pick the highest scorer.
     score = next(
-        (
-            item
-            for item in state["buyer_scores"]
-            if float(item["freshness_score"]) > 0
-        ),
-        None,
+        item for item in scores if float(item["freshness_score"]) > 0
     )
-    if score is None:
-        return DecisionType.ALTERNATE_MARKET, None
     buyer = next(
         item
         for item in state["available_buyers"]
@@ -268,17 +341,17 @@ def _policy_decision(state: AgentState) -> tuple[DecisionType, dict[str, Any] | 
     )
     catch = Catch.model_validate(state["validated_submission"])
     if float(buyer["price_offered_per_kg"]) >= catch.expected_min_price_per_kg:
-        return DecisionType.DIRECT_SALE, buyer
-    return DecisionType.NEGOTIATE, buyer
+        return DecisionType.DIRECT_SALE, buyer, None
+    return DecisionType.NEGOTIATE, buyer, None
 
 
 def _parse_decision_output(raw_content: str) -> DecisionOutput:
-    """Extract and validate one JSON object from an Ollama Cloud response.
+    """Extract and validate one JSON object from an LLM response.
 
-    Ollama Cloud does not currently enforce the ``format`` schema for cloud
-    models. Gemma therefore receives the schema in the prompt, and this parser
-    treats every model response as untrusted until Pydantic validation succeeds.
-    It also tolerates Markdown fences or empty thinking-channel markers.
+    The configured cloud model may not always enforce the ``format`` schema.
+    The model receives the schema in the prompt and this parser treats every
+    response as untrusted until Pydantic validation succeeds. It also tolerates
+    Markdown fences or empty thinking-channel markers.
     """
 
     content = raw_content.strip()
@@ -296,7 +369,10 @@ def _parse_decision_output(raw_content: str) -> DecisionOutput:
             return DecisionOutput.model_validate(candidate)
         except (json.JSONDecodeError, ValueError, TypeError):
             continue
-    raise ValueError("Gemma 4 response did not contain a valid DecisionOutput object.")
+    settings = get_settings()
+    raise ValueError(
+        f"{settings.ollama_model} response did not contain a valid DecisionOutput object."
+    )
 
 
 def _gemma_decision(
@@ -346,7 +422,8 @@ def _gemma_decision(
 
 
 def decision_node(state: AgentState) -> dict[str, Any]:
-    allowed, buyer = _policy_decision(state)
+    settings = get_settings()
+    allowed, buyer, no_buyer_reason = _policy_decision(state)
     market = _best_market(state["available_markets"])
     catch = Catch.model_validate(state["validated_submission"])
     score = (
@@ -359,31 +436,35 @@ def decision_node(state: AgentState) -> dict[str, Any]:
         else None
     )
 
+    currency = settings.currency_code
     if allowed == DecisionType.DIRECT_SALE:
         explanation = (
             f"{buyer['buyer_name']} ranks first at {score['score']:.2f}/100 and offers "
-            f"INR {float(buyer['price_offered_per_kg']):.2f}/kg, meeting the fisher's "
-            f"INR {catch.expected_min_price_per_kg:.2f}/kg minimum. {score['reasoning']}"
+            f"{currency} {float(buyer['price_offered_per_kg']):.2f}/kg, meeting the fisher's "
+            f"{currency} {catch.expected_min_price_per_kg:.2f}/kg minimum. {score['reasoning']}"
         )
         strategy = None
     elif allowed == DecisionType.NEGOTIATE:
         gap = catch.expected_min_price_per_kg - float(buyer["price_offered_per_kg"])
         explanation = (
             f"The best retrieved buyer is {buyer['buyer_name']} at {score['score']:.2f}/100, "
-            f"but its offer is INR {gap:.2f}/kg below the fisher's minimum."
+            f"but its offer is {currency} {gap:.2f}/kg below the fisher's minimum."
         )
         strategy = (
-            f"Open at INR {catch.expected_min_price_per_kg:.2f}/kg, cite the "
+            f"Open at {currency} {catch.expected_min_price_per_kg:.2f}/kg, cite the "
             f"{state['freshness_status'].lower()} catch and current market benchmark, and "
             "offer a small volume discount only if the buyer confirms full pickup."
         )
-    else:
-        explanation = (
-            "No eligible buyer was returned for this fish type, travel radius, and active "
-            "demand. The best retrieved market is used as the fallback."
-            if market
-            else "No eligible buyer or market was returned from the stored records."
+    else:  # ALTERNATE_MARKET
+        base_reason = no_buyer_reason or (
+            "No eligible buyer was returned for this fish type, travel radius, and active demand."
         )
+        fallback = (
+            f" The best retrieved market ({market['market_name']}) is used as the fallback."
+            if market
+            else " No eligible market was found either; contact the local cooperative."
+        )
+        explanation = base_reason + fallback
         strategy = None
 
     llm_used = False
@@ -418,12 +499,11 @@ def decision_node(state: AgentState) -> dict[str, Any]:
         "type": allowed.value,
         "explanation": explanation,
         "negotiation_strategy": strategy,
-        "reasoning_source": "gemma4_guardrailed" if llm_used else "deterministic_policy",
+        "reasoning_source": "llm_guardrailed" if llm_used else "deterministic_policy",
     }
-    settings = get_settings()
     details = {
         "llm_used": llm_used,
-        "model_provider": "ollama",
+        "model_provider": settings.model_provider,
         "model": settings.ollama_model,
     }
     if llm_error:
@@ -449,11 +529,12 @@ def proposal_generation_node(state: AgentState) -> dict[str, Any]:
     notification: dict[str, Any] = {}
 
     if decision == DecisionType.DIRECT_SALE:
+        settings = get_settings()
         buyer = Buyer.model_validate(state["selected_buyer"])
         subject = EMAIL_SUBJECT_TEMPLATE.format(
             quantity=catch.quantity_kg, fish_type=catch.fish_type
         )
-        body = EMAIL_BODY_TEMPLATE.format(
+        body = get_email_body_template(settings.currency_code).format(
             buyer_name=buyer.buyer_name,
             fish_type=catch.fish_type,
             quantity=catch.quantity_kg,
@@ -593,11 +674,12 @@ def response_node(state: AgentState) -> dict[str, Any]:
         lines = "\n".join(f"- {item}" for item in state["validation_errors"])
         response = f"Submission could not be processed:\n{lines}"
     else:
+        settings = get_settings()
         decision = state["decision"]
         response = (
             f"Decision: {decision['type'].replace('_', ' ').title()}\n\n"
             f"{decision['explanation']}\n\n"
-            f"Expected revenue: INR {state['expected_revenue']:,.2f}\n\n"
+            f"Expected revenue: {settings.currency_code} {state['expected_revenue']:,.2f}\n\n"
             f"Recommended action: {state['proposal']['summary']}\n\n"
             f"Trace ID: {state.get('transaction_id', 'not stored')}"
         )

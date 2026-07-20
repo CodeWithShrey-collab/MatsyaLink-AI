@@ -19,3 +19,8 @@ BUY-017,West Coast Retail Mart,Pomfret|Mackerel,700,Ratnagiri Maharashtra,48,700
 BUY-018,Seabreeze Catering,Pomfret|Prawns,260,Mumbai Maharashtra,22,745,buyer18@example.com,High,Fresh
 BUY-019,Peninsula Cold Storage,Mackerel|Tuna,1600,Chennai Tamil Nadu,33,510,buyer19@example.com,Medium,Low Freshness
 BUY-020,Artisanal Catch Bazaar,Pomfret|Mackerel|Prawns|Tuna,400,Goa,20,590,buyer20@example.com,High,Moderate
+BUY-021,Howrah Fresh Fish Depot,Rohu,550,Howrah West Bengal,12,248,buyer21@example.com,High,Moderate
+BUY-022,Kolkata Hotel Collective,Rohu,320,Kolkata West Bengal,22,260,buyer22@example.com,High,Fresh
+BUY-023,Bengal Freshwater Traders,Rohu,900,Kolkata West Bengal,18,238,buyer23@example.com,Medium,Low Freshness
+BUY-024,Sealdah Wholesale Buyers,Rohu|Mackerel,1200,Kolkata West Bengal,20,235,buyer24@example.com,High,Low Freshness
+BUY-025,Salt Lake Catering Supply,Rohu,280,Kolkata West Bengal,30,255,buyer25@example.com,High,Fresh
