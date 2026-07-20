@@ -68,6 +68,8 @@ def submission_validation_node(state: AgentState) -> dict[str, Any]:
                 "expected_min_price",
                 "Expected Minimum Price",
             ),
+            preferred_market=_first(raw, "preferred_market", "Preferred Market"),
+            logistics_required=_first(raw, "logistics_required", "Logistics Required"),
             max_travel_distance_km=_first(
                 raw,
                 "max_travel_distance_km",

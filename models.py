@@ -56,6 +56,8 @@ class Catch(DomainModel):
     quantity_kg: float = Field(gt=0, le=100_000)
     catch_time: datetime
     expected_min_price_per_kg: float = Field(ge=0, le=1_000_000)
+    preferred_market: str | None = None
+    logistics_required: str | None = None
     max_travel_distance_km: float = Field(gt=0, le=2_000)
     grade: str | None = None
 
