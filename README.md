@@ -8,6 +8,14 @@ The core is a LangGraph state machine with real conditional edges, tool
 execution, structured Gemini reasoning, Gmail notification, Google Sheets
 persistence, and transaction analytics. It is not a chatbot or a CRUD wrapper.
 
+## Documentation
+
+- [Documentation center](docs/README.md)
+- [Developer handbook](docs/DEVELOPER_GUIDE.md)
+- [Consumer guide and deliverable](docs/CONSUMER_DELIVERABLE.md)
+- [Architecture reference](docs/architecture.md)
+- [Fifteen-phase delivery checklist](docs/phase-checklist.md)
+
 ## What the demo proves
 
 - Validates and normalizes a fisher's catch submission.
